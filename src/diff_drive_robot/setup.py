@@ -40,6 +40,7 @@ setup(
             'arrow_teleop = diff_drive_robot.arrow_teleop:main',
             'odom_to_tf = diff_drive_robot.odom_to_tf:main',
             'yolo_tracker = diff_drive_robot.yolo_tracker:main',
+            'kinect_bridge = diff_drive_robot.kinect_bridge:main',
         ],
     },
 )

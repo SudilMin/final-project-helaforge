@@ -11,7 +11,6 @@ from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node, SetRemap
-import xacro
 
 
 def generate_launch_description():
@@ -45,23 +44,19 @@ def generate_launch_description():
         description='Auto-start the Nav2 lifecycle nodes',
     )
 
-    # ── RTAB-Map (RGB-D SLAM) ──────────────────────────────────────────
-    rtabmap = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('rtabmap_launch'), 'launch', 'rtabmap.launch.py')]),
-        launch_arguments={
-            'rtabmap_args': '--delete_db_on_start',
-            'frame_id': 'base_footprint',
-            'rgb_topic': '/camera/image_raw',
-            'depth_topic': '/camera/depth/image_raw',
-            'camera_info_topic': '/camera/camera_info',
-            'approx_sync': 'true',
-            'wait_imu_to_init': 'false',
-            'use_sim_time': use_sim_time,
-            'rviz': 'false',
-            'rtabmapviz': 'false'
-        }.items(),
+    # ── SLAM Toolbox (2D LiDAR occupancy grid SLAM) ──────────────────
+    slam_params_file = os.path.join(pkg_dir, 'config', 'mapper_params_online_async.yaml')
+
+    slam_toolbox = Node(
         condition=IfCondition(use_slam),
+        package='slam_toolbox',
+        executable='async_slam_toolbox_node',
+        name='slam_toolbox',
+        output='screen',
+        parameters=[
+            slam_params_file,
+            {'use_sim_time': use_sim_time},
+        ],
     )
 
     # ── Map Server (only when use_slam=false) ──────────────────────
@@ -177,7 +172,7 @@ def generate_launch_description():
 
     # ── Nav2 Lifecycle Manager (delayed to let SLAM produce map) ────
     delayed_lifecycle_mgr = TimerAction(
-        period=10.0,
+        period=15.0,
         actions=[
             Node(
                 package='nav2_lifecycle_manager',
@@ -187,8 +182,9 @@ def generate_launch_description():
                 parameters=[{
                     'use_sim_time': use_sim_time,
                     'autostart': autostart,
-                    'bond_timeout': 20.0,
+                    'bond_timeout': 30.0,
                     'node_names': [
+                        'slam_toolbox',
                         'controller_server',
                         'planner_server',
                         'behavior_server',
@@ -218,7 +214,7 @@ def generate_launch_description():
         declare_autostart,
 
         # Localization
-        rtabmap,
+        slam_toolbox,
         map_server,
         amcl,
         lifecycle_mgr_localization,

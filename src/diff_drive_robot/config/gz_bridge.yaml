@@ -7,7 +7,7 @@
 #   tf:       /model/qbot2_robot/tf
 
 # ── Differential Drive ──────────────────────────────────────────────
-- ros_topic_name: "cmd_vel"
+- ros_topic_name: "/cmd_vel"
   gz_topic_name: "/model/qbot2_robot/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "gz.msgs.Twist"

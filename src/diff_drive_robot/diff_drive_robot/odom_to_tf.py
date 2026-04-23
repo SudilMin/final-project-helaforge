@@ -13,6 +13,7 @@ class OdomToTF(Node):
     def __init__(self):
         super().__init__('odom_to_tf')
         self.tf_broadcaster = TransformBroadcaster(self)
+        # Use BEST_EFFORT to match the Gazebo bridge publisher QoS
         qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,

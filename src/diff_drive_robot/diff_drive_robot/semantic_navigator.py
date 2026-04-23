@@ -848,11 +848,44 @@ class SemanticNavigator(Node):
         self.ang_prev = e
         return KP_ANG * e + KI_ANG * self.ang_i + KD_ANG * d
 
+def _stdin_reader(node, pub):
+    """Background thread: reads stdin and publishes commands to /semantic_nav/command."""
+    import threading
+    import sys
+    print("\n=== Semantic Navigator CLI ===")
+    print("Commands: scan | stop scan | list | <object_id>")
+    print("Type a command and press Enter:\n")
+    while rclpy.ok():
+        try:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            cmd = line.strip()
+            if not cmd:
+                continue
+            msg = String()
+            msg.data = cmd
+            pub.publish(msg)
+            print(f"[CLI] Sent: '{cmd}'")
+        except Exception:
+            break
+
+
 def main():
+    import threading
     rclpy.init()
     node = SemanticNavigator()
+
+    # Publisher for stdin → /semantic_nav/command
+    cli_pub = node.create_publisher(String, '/semantic_nav/command', 10)
+
     ex = MultiThreadedExecutor()
     ex.add_node(node)
+
+    # Start stdin reader in background thread
+    t = threading.Thread(target=_stdin_reader, args=(node, cli_pub), daemon=True)
+    t.start()
+
     try:
         ex.spin()
     except KeyboardInterrupt:
