@@ -27,8 +27,8 @@ _colcon_prefix_chain_powershell_source_script "/opt/ros/jazzy/local_setup.ps1"
 _colcon_prefix_chain_powershell_source_script "/home/sudil-minthaka/ros2_ws_udemy/install/local_setup.ps1"
 _colcon_prefix_chain_powershell_source_script "/home/sudil-minthaka/Documents/final-project-helaforge/install/local_setup.ps1"
 _colcon_prefix_chain_powershell_source_script "/home/sudil-minthaka/ros2_ws_actions/install/local_setup.ps1"
-_colcon_prefix_chain_powershell_source_script "/home/sudil-minthaka/ros2_ws/install/local_setup.ps1"
 _colcon_prefix_chain_powershell_source_script "/home/sudil-minthaka/Documents/lab-02-SudilMin/CS3340-Workspace/install/local_setup.ps1"
+_colcon_prefix_chain_powershell_source_script "/home/sudil-minthaka/ros2_ws/install/local_setup.ps1"
 _colcon_prefix_chain_powershell_source_script "/home/sudil-minthaka/kobuki_ws/install/local_setup.ps1"
 
 # source this prefix
