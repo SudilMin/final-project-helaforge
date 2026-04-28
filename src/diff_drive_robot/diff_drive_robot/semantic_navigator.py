@@ -65,13 +65,13 @@ YOLO_EVERY_N     = 5              # run YOLO every N camera frames
 # Plain colored boxes have no texture so YOLO scores are typically 15-30%.
 # Raise to 0.45+ when running on a real camera with real objects.
 CONF_THRESHOLD   = 0.20
-STANDOFF         = 0.30           # stop 30 cm from target object (close approach)
+STANDOFF         = 0.50           # stop 50 cm from target object
 WP_SPACING       = 0.60           # record a waypoint every 0.6 m
 WP_TOL           = 0.25           # waypoint reached tolerance
-MAX_LIN          = 0.3            # max linear speed  (m/s) – safe for Kobuki
+MAX_LIN          = 0.5            # max linear speed  (m/s)
 MAX_ANG          = 1.2            # max angular speed (rad/s)
-OBS_STOP_DIST    = 0.30           # stop if obstacle within 30 cm (from /scan)
-KP_LIN, KI_LIN, KD_LIN = 1.2, 0.02, 0.1
+OBS_STOP_DIST    = 0.40           # stop if obstacle within 40 cm (from /scan)
+KP_LIN, KI_LIN, KD_LIN = 1.5, 0.02, 0.1
 KP_ANG, KI_ANG, KD_ANG = 3.0, 0.01, 0.2
 
 MAP_FILE = os.path.expanduser('~/Documents/ROS_final_project/yolo_semantic_map.json')
@@ -383,28 +383,37 @@ class SemanticNavigator(Node):
         self._pid_reset()
         t0 = time.time()
         i = 0
-        while rclpy.ok() and (time.time() - t0) < 45.0:
+        while (time.time() - t0) < 60.0:
+            if not rclpy.ok():
+                break
             i += 1
             dx, dy = tx - self.ox, ty - self.oy
             dist   = math.hypot(dx, dy)
             if dist < tol:
                 break
 
-            if i % 5 == 0:
-                self.get_logger().info(f'Nav: dist={dist:.2f}m, obs={self.obs_front:.2f}m')
+            if i % 10 == 0:  # log every ~1 second
+                self.get_logger().info(f'Nav: dist={dist:.2f}m  obs={self.obs_front:.2f}m')
 
-            # ── FIX F: only check standoff when ALREADY close to target ──────
+            # Only stop for obstacle when ALREADY close to the target area
+            # (prevents triggering from 4m away just because a wall is nearby)
             if (stop_at_obs is not None
-                    and dist <= stop_at_obs
+                    and dist <= stop_at_obs * 2.0
                     and self.obs_front <= stop_at_obs):
+                self.get_logger().info(
+                    f'Obstacle stop at {dist:.2f}m — obs={self.obs_front:.2f}m')
                 break
 
             yaw_err = norm_angle(math.atan2(dy, dx) - self.oyaw)
             lin = self._pid_linear(dist, 0.1)
             ang = self._pid_angular(yaw_err, 0.1)
 
-            if abs(yaw_err) > 1.2:
-                lin = 0.0                            # rotate first, then drive
+            # Slow forward while turning, full stop if very misaligned
+            if abs(yaw_err) > 1.0:
+                lin = 0.0                            # large error: rotate only
+            elif abs(yaw_err) > 0.5:
+                lin = min(lin, 0.15)                 # small error: creep forward
+
             if self.obs_front < OBS_STOP_DIST:
                 lin = 0.0                            # emergency obstacle stop
 
@@ -442,10 +451,16 @@ class SemanticNavigator(Node):
     def _publish_markers(self):
         ma  = MarkerArray()
         now = self.get_clock().now().to_msg()
+        # Use 'map' frame if available (simulation with SLAM), else fall back to 'odom'
+        try:
+            self.tf_buffer.lookup_transform('map', 'odom', rclpy.time.Time())
+            frame = 'map'
+        except Exception:
+            frame = 'odom'
         for i, (oid, c) in enumerate(self.object_dict.items()):
             # Sphere
             m = Marker()
-            m.header.frame_id = 'map'
+            m.header.frame_id = frame
             m.header.stamp    = now
             m.ns, m.id, m.type, m.action = 'objects', i, Marker.SPHERE, Marker.ADD
             m.pose.position.x, m.pose.position.y, m.pose.position.z = float(c['x']), float(c['y']), 0.2
@@ -454,7 +469,7 @@ class SemanticNavigator(Node):
             ma.markers.append(m)
             # Label
             t = Marker()
-            t.header.frame_id = 'map'
+            t.header.frame_id = frame
             t.header.stamp    = now
             t.ns, t.id, t.type, t.action = 'labels', i + 100, Marker.TEXT_VIEW_FACING, Marker.ADD
             t.pose.position.x, t.pose.position.y, t.pose.position.z = float(c['x']), float(c['y']), 0.6

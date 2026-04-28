@@ -6,6 +6,8 @@ from launch.actions import (
     IncludeLaunchDescription,
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -32,6 +34,7 @@ def generate_launch_description():
 
     # ── Launch arguments ───────────────────────────────────────────────
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
+    use_rviz     = LaunchConfiguration('rviz', default='true')
 
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
@@ -42,6 +45,11 @@ def generate_launch_description():
         'world',
         default_value='room.sdf',
         description='Name of the world SDF file inside the worlds/ directory',
+    )
+    declare_rviz = DeclareLaunchArgument(
+        'rviz',
+        default_value='true',
+        description='Launch RViz2 with saved config (true/false)',
     )
 
     # ── Gazebo Harmonic (gz sim) ───────────────────────────────────────
@@ -118,15 +126,29 @@ def generate_launch_description():
 
     # ── native LaserScan from Gazebo is now used directly ─────────────
 
+    # ── RViz ─────────────────────────────────────────────────────────
+    rviz_config = os.path.join(pkg_dir, 'config', 'sim.rviz')
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='screen',
+        condition=IfCondition(use_rviz),
+        arguments=['-d', rviz_config] if os.path.exists(rviz_config) else [],
+        parameters=[{'use_sim_time': use_sim_time}],
+    )
+
     # ── Build launch description ──────────────────────────────────────
     return LaunchDescription([
         declare_use_sim_time,
         declare_world,
+        declare_rviz,
         gz_sim,
         robot_state_publisher,
         spawn_entity,
         gz_bridge,
         gz_bridge_scan,
         odom_to_tf,
+        rviz_node,
     ])
 

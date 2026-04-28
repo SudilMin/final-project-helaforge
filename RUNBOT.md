@@ -1,16 +1,126 @@
 # 🤖 RUNBOT — Semantic Navigation System
 
-> ✅ **Last verified working:** 2026-04-24 — Ubuntu 24.04 / ROS 2 Jazzy
+> ✅ **Last verified working:** 2026-04-28 — Ubuntu 24.04 / ROS 2 Jazzy
 
 ---
 
 ## 📋 Table of Contents
-1. [One-Time Setup](#one-time-setup)
-2. [Pre-Flight Checks](#pre-flight-checks) ← **Run these before every session**
-3. [Run Simulation (Gazebo)](#run-simulation-gazebo)
-4. [Run Physical Robot](#run-physical-robot-kobuki--kinect)
-5. [Workflow — Commands](#workflow--commands)
-6. [Troubleshooting](#troubleshooting)
+1. [⚡ Quick Reference Commands](#-quick-reference-commands) ← **Start here every session**
+2. [One-Time Setup](#one-time-setup)
+3. [Pre-Flight Checks](#pre-flight-checks)
+4. [Run Simulation (Gazebo + RViz)](#️-run-simulation-gazebo--rviz)
+5. [Run Physical Robot](#run-physical-robot-kobuki--kinect)
+6. [Workflow — Commands](#workflow--commands)
+7. [RViz Display Setup](#rviz-display-setup-first-time-only)
+8. [Troubleshooting](#troubleshooting)
+
+---
+
+## ⚡ Quick Reference Commands
+
+> Copy-paste these every session. Open each block in a **separate terminal**.
+
+---
+
+### 🖥️ SIMULATION MODE (no hardware needed)
+
+**Terminal 1 — Gazebo + RViz:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 launch diff_drive_robot spawn_robot.launch.py
+```
+
+**Terminal 2 — Semantic Navigator:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 run diff_drive_robot semantic_navigator
+```
+
+**Terminal 3 — Drive the robot:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 run diff_drive_robot arrow_teleop
+```
+
+**Then in Terminal 2, type these commands:**
+```
+scan          → start YOLO detection
+list          → show all detected objects
+chair_1       → navigate to chair_1 (replace with actual object ID)
+stop scan     → stop scanning, save map
+```
+
+---
+
+### 🤖 PHYSICAL ROBOT MODE (Kobuki + Kinect)
+
+> Run Pre-Flight Checks first (see below).
+
+**Terminal 1 — Kobuki Driver:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 run diff_drive_robot kobuki_driver --ros-args -p serial_port:=/dev/ttyUSB0 2>&1
+```
+
+**Terminal 2 — Kinect Bridge:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 run diff_drive_robot kinect_bridge 2>&1
+```
+
+**Terminal 3 — Semantic Navigator:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 run diff_drive_robot semantic_navigator 2>&1
+```
+
+**Terminal 4 — Option A: Voice control:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 run diff_drive_robot voice_commander 2>&1
+```
+
+**Terminal 4 — Option B: Keyboard driving:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/Music/final-project-helaforge/install/setup.bash
+ros2 run diff_drive_robot arrow_teleop 2>&1
+```
+
+**Then in Terminal 3, type these commands:**
+```
+scan          → start YOLO detection
+list          → show all detected objects
+chair_1       → navigate to chair_1 (replace with actual object ID)
+stop scan     → stop scanning, save map
+```
+
+---
+
+### 🔍 Useful Diagnostics (any terminal)
+```bash
+# Check all active topics
+ros2 topic list
+
+# Check odom is streaming (~10–30 Hz)
+ros2 topic hz /odom
+
+# Check TF tree is complete
+ros2 run tf2_tools view_frames
+
+# Check laser scan is working
+ros2 topic hz /scan
+
+# Check camera is streaming
+ros2 topic hz /camera/image_raw
+```
 
 ---
 
@@ -133,16 +243,24 @@ freenect.sync_stop()
 
 ---
 
-## 🖥️ Run Simulation (Gazebo)
+## 🖥️ Run Simulation (Gazebo + RViz)
 
-### Terminal 1 — Launch Gazebo + Robot
+> **No hardware needed.** Gazebo simulates the robot, sensors, and world.
+> RViz **auto-launches** with the saved config from `config/sim.rviz`.
+
+### Terminal 1 — Gazebo + RViz (auto-launches together)
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/Music/final-project-helaforge/install/setup.bash
-
 ros2 launch diff_drive_robot spawn_robot.launch.py
 ```
-✅ Gazebo opens with the robot in the room world.
+✅ Both **Gazebo** and **RViz** open automatically.
+⏳ Wait ~20 seconds for everything to fully load.
+
+To launch **without** RViz:
+```bash
+ros2 launch diff_drive_robot spawn_robot.launch.py rviz:=false
+```
 
 To use a different world:
 ```bash
@@ -153,7 +271,6 @@ ros2 launch diff_drive_robot spawn_robot.launch.py world:=room.sdf
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/Music/final-project-helaforge/install/setup.bash
-
 ros2 run diff_drive_robot semantic_navigator
 ```
 ✅ Expected:
@@ -163,14 +280,39 @@ ros2 run diff_drive_robot semantic_navigator
 Commands: scan | stop scan | list | <object_id>
 ```
 
-### Terminal 3 — Keyboard Teleop (to drive in simulation)
+### Terminal 3 — Keyboard Teleop (drive the robot)
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/Music/final-project-helaforge/install/setup.bash
-
 ros2 run diff_drive_robot arrow_teleop
 ```
 > Use `↑ ↓ ← →` arrow keys. Press `Q` to quit.
+
+---
+
+## 🗺️ RViz Display Setup (first time only)
+
+> After saving the config once, RViz auto-loads it every time. Skip this after first run.
+
+In RViz, click **Add** (bottom-left) → **By display type** tab:
+
+| # | Display Type | Topic / Setting |
+|---|---|---|
+| 1 | `TF` | *(auto)* — shows coordinate frames |
+| 2 | `RobotModel` | *(auto)* — renders full robot URDF |
+| 3 | `LaserScan` | Topic: `/scan` · Reliability: `Best Effort` · Style: `Flat Squares` |
+| 4 | `MarkerArray` | Topic: `/semantic_objects` — shows detected objects as spheres with labels |
+| 5 | `Odometry` | Topic: `/odom` · Reliability: `Best Effort` · **Keep: `1`** |
+
+**Fixed Frame:** `odom` (set in Global Options at top of Displays panel)
+
+**Save config so it auto-loads next time:**
+```
+File → Save Config As → ~/Music/final-project-helaforge/config/sim.rviz
+```
+
+> 💡 Press **F** with mouse over the 3D view to focus/zoom to the robot.
+> 💡 Change View Type to **TopDownOrtho** (right panel) for a 2D map view.
 
 ---
 
@@ -226,16 +368,24 @@ ros2 run diff_drive_robot arrow_teleop 2>&1
 
 Once all terminals are running:
 
-| Step | Action | Where |
-|---|---|---|
-| 1 | Type `scan` | Terminal 3 |
-| 2 | Drive around room | Terminal 4 (arrow keys) |
-| 3 | Watch object detections appear | Terminal 3 |
-| 4 | Type `list` to see all found objects | Terminal 3 |
-| 5 | Type `chair_1` (or any object ID) to navigate to it | Terminal 3 |
-| 6 | Type `stop scan` to stop and return home | Terminal 3 |
+**Simulation (type in Terminal 2):**
 
-**Voice commands (Terminal 4 voice mode):** say `"scan"`, `"list"`, `"go to chair 1"`, `"stop scan"`
+| Step | Type in Terminal 2 | What happens |
+|---|---|---|
+| 1 | `scan` | Starts YOLO object detection |
+| 2 | *(drive in Terminal 3)* | Drive around room with arrow keys |
+| 3 | *(watch Terminal 2)* | Objects appear: `NEW OBJECT: chair_1 dist=2.1m` |
+| 4 | `list` | Shows all detected objects with positions |
+| 5 | `chair_1` | Robot autonomously drives to chair_1 (stops 50 cm away) |
+| 6 | `stop scan` | Stops scanning, saves object map to disk |
+
+> **Navigation parameters (simulation):**
+> - Speed: `0.5 m/s` max
+> - Standoff distance: `0.5 m` from target
+> - Obstacle emergency stop: `0.4 m`
+
+**Physical robot (type in Terminal 3):** same commands above.
+**Voice commands:** say `"scan"`, `"list"`, `"go to chair 1"`, `"stop scan"`
 
 ---
 
@@ -243,6 +393,11 @@ Once all terminals are running:
 
 | Problem | Fix |
 |---|---|
+| RViz doesn't open with Gazebo | Config file missing — run `ros2 launch ... spawn_robot.launch.py` first, then set up RViz manually and save to `config/sim.rviz` |
+| RobotModel / TF not showing in RViz | Click **Add → By display type** and add `TF` and `RobotModel` — they must be added manually first time |
+| LaserScan red error in RViz | Set Topic to `/scan` and Reliability Policy to `Best Effort` |
+| Robot immediately says "Arrived" without moving | Fixed in current code — obstacle stop now only triggers within 1.0m of target |
+| Robot moves very slowly | Fixed — `MAX_LIN` is now `0.5 m/s`. Restart semantic_navigator. |
 | `Cannot open /dev/ttyUSB0` | `sudo chmod 666 /dev/ttyUSB0` |
 | `kobuki_driver` exits immediately, `Fatal: Parameter(s) already declared: ['use_sim_time']` | Remove `self.declare_parameter('use_sim_time', False)` from `kobuki_driver.py` — already fixed in this repo |
 | Kinect: only 1 or 2 USB devices show in `lsusb` | Unplug ALL Kinect cables, wait 10s, replug. Try a different USB port. |
